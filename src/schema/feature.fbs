@@ -1,6 +1,6 @@
 include "header.fbs";
 
-namespace FlatGeoBuf;
+// namespace FlatGeobuf;
 
 table Geometry {
   ends: [uint];          // Array of end index in flat coordinates per geometry part
@@ -20,3 +20,4 @@ table Feature {
 }
 
 root_type Feature;
+  
