@@ -1,5 +1,5 @@
+// From https://github.com/bjornharrtell/flatgeobuf/blob/master/src/fbs/header.fbs
 include "header.fbs";
-
 // namespace FlatGeobuf;
 
 table Geometry {

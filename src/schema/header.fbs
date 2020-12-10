@@ -1,3 +1,4 @@
+// From https://github.com/bjornharrtell/flatgeobuf/blob/master/src/fbs/header.fbs
 // namespace FlatGeobuf;
 
 // Geometry type enumeration 
