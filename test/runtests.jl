@@ -1,5 +1,5 @@
 using Test
-using FlatGeoBuf
+using FlatGeobuf
 using FlatBuffers
 
 fna = "countries.fgb"
@@ -8,15 +8,15 @@ isfile(fna) || download("https://github.com/bjornharrtell/flatgeobuf/blob/master
 isfile(fnb) || download("https://github.com/bjornharrtell/flatgeobuf/blob/master/test/data/UScounties.fgb?raw=true", fnb)
 
 
-crs = FlatGeoBuf.Crs("epsg", 28992, "RD New", "Dutch grid", "proj+=asdas", "codestring")
-h = FlatGeoBuf.Header(name="test", crs=crs)
+crs = FlatGeobuf.Crs("epsg", 28992, "RD New", "Dutch grid", "proj+=asdas", "codestring")
+h = FlatGeobuf.Header(name="test", crs=crs)
 
-g = FlatGeoBuf.Geometry()
+g = FlatGeobuf.Geometry()
 @info g
 
 open("example.bin", "w") do f FlatBuffers.serialize(f, h) end
 nh = open("example.bin", "r") do f
-    FlatBuffers.deserialize(f, FlatGeoBuf.Header)
+    FlatBuffers.deserialize(f, FlatGeobuf.Header)
 end
 @info nh
 @info nh.crs
@@ -26,7 +26,8 @@ end
 skipmagic(io::IO) = seek(io, 8)
 skipmagic(buf::AbstractVector{UInt8}) = view(buf, 8:length(buf))
 
-data = FlatGeoBuf.read_file(fnb)
+data = FlatGeobuf.read_file(fnb)
+@info data
 # @testset "Magic" begin
 #     @info data[1:4]
 #     @test data[1] == 0x66
@@ -36,4 +37,4 @@ data = FlatGeoBuf.read_file(fnb)
 # end
 # skipmagic(data)
 # headersize = data[]
-# FlatGeoBuf.Header(data)
+# FlatGeobuf.Header(data)

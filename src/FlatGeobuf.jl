@@ -1,4 +1,4 @@
-module FlatGeoBuf
+module FlatGeobuf
 
 import FlatBuffers
 
@@ -11,6 +11,13 @@ import FlatBuffers
 # include("schema/Feature.jl")
 # include("schema/Header.jl")
 include("schema/feature_generated.jl")
+
+struct FlatGeobuffer
+    header::Header
+    rtree::Array{UInt8}
+    features::Vector{Feature}
+end
+Base.show(io::IO, fgb::FlatGeobuffer) = print(io, "FlatGeobuffer with $(fgb.header.features_count) $(fgb.header.geometry_type) features.")
 
 function skipmagic(io::IO)
     magic = read(io, 8)
@@ -40,6 +47,7 @@ function read_file(fn)
     header_size = read(io, UInt32)
     @info "headerSize: $header_size"
     header = Header(read(io, header_size))
+    fgb = FlatGeobuffer(header, [], [])
     @info header, header.crs, header.columns
     rtree_size = 0
     if header.index_node_size > 0
@@ -49,13 +57,14 @@ function read_file(fn)
     end
     seek(io, position(io) + rtree_size)
     @info "Features start at offset ($(position(io)))"
+    sizehint!(fgb.features, header.features_count)
     for i = 1:header.features_count
         feature_size = read(io, UInt32)
         f = Feature(read(io, feature_size))
-        @info f.geometry.parts
-        # @info f.columns
+        push!(fgb.features, f)
     end
     @info "At end of file: $(eof(io))"
+    fgb
 end
 
 end # module

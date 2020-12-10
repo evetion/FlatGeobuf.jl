@@ -1,16 +1,16 @@
-# FlatGeoBuf.jl
+# FlatGeobuf.jl
 flatgeobuf implementation (https://bjornharrtell.github.io/flatgeobuf/) in Julia.
 
 Very much a *work in progress*.
 
 # Installation
 ```julia
-] add FlatGeoBuf
+] add FlatGeobuf
 ```
 
 # Usage
 ```julia
-import FlatGeoBuf; const FGB=FlatGeoBuf
+import FlatGeobuf; const FGB=FlatGeobuf
 
 feature = FGB.read_file("countries.fgb")
 ```

@@ -1,4 +1,4 @@
-name = "FlatGeoBuf"
+name = "FlatGeobuf"
 uuid = "d985ece1-97de-4d33-914c-38fb84042e15"
 authors = ["Maarten Pronk <git@evetion.nl>"]
 version = "0.1.0"
