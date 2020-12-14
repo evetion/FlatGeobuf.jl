@@ -1,40 +1,44 @@
 using Test
 using FlatGeobuf
 using FlatBuffers
-
-fna = "countries.fgb"
-fnb = "UScounties.fgb"
-isfile(fna) || download("https://github.com/bjornharrtell/flatgeobuf/blob/master/test/data/countries.fgb?raw=true", fna)
-isfile(fnb) || download("https://github.com/bjornharrtell/flatgeobuf/blob/master/test/data/UScounties.fgb?raw=true", fnb)
+using Tables
 
 
-crs = FlatGeobuf.Crs("epsg", 28992, "RD New", "Dutch grid", "proj+=asdas", "codestring")
-h = FlatGeobuf.Header(name="test", crs=crs)
+@testset "FlatGeobuf" begin
+    fna = "countries.fgb"
+    fnb = "UScounties.fgb"
+    isfile(fna) || download("https://github.com/bjornharrtell/flatgeobuf/blob/master/test/data/countries.fgb?raw=true", fna)
+    isfile(fnb) || download("https://github.com/bjornharrtell/flatgeobuf/blob/master/test/data/UScounties.fgb?raw=true", fnb)
 
-g = FlatGeobuf.Geometry()
-@info g
 
-open("example.bin", "w") do f FlatBuffers.serialize(f, h) end
-nh = open("example.bin", "r") do f
-    FlatBuffers.deserialize(f, FlatGeobuf.Header)
+    @testset "Construction" begin
+        crs = FlatGeobuf.Crs("epsg", 28992, "RD New", "Dutch grid", "proj+=asdas", "codestring")
+        h = FlatGeobuf.Header(name="test", crs=crs)
+        g = FlatGeobuf.Geometry()
+    end
+
+    @testset "Serializing and parsing" begin
+        crs = FlatGeobuf.Crs("epsg", 28992, "RD New", "Dutch grid", "proj+=asdas", "codestring")
+        h = FlatGeobuf.Header(name="test", crs=crs)
+
+        # Write header
+        open("example.bin", "w") do f FlatBuffers.serialize(f, h) end
+        # Read header again
+        nh = open("example.bin", "r") do f
+            FlatBuffers.deserialize(f, FlatGeobuf.Header)
+        end
+
+        # Assert it's similar
+        @test h.crs.wkt == nh.crs.wkt
+    end
+
+    @testset "Using testfiles" begin
+        fgb = FlatGeobuf.read_file(fnb)
+        features = collect(fgb)
+        @test length(features) == 3221
+
+        filter!(fgb, [-92.73405699999999, 32.580974999999995, -92.73405699999999, 32.580974999999995])
+        features = collect(fgb)
+        @test length(features) == 2
+    end
 end
-@info nh
-@info nh.crs
-@info h.crs === nh.crs
-@info h === nh
-
-skipmagic(io::IO) = seek(io, 8)
-skipmagic(buf::AbstractVector{UInt8}) = view(buf, 8:length(buf))
-
-data = FlatGeobuf.read_file(fnb)
-@info data
-# @testset "Magic" begin
-#     @info data[1:4]
-#     @test data[1] == 0x66
-#     @test data[2] == 0x67
-#     @test data[3] == 0x62
-#     @test data[4] == 0x03
-# end
-# skipmagic(data)
-# headersize = data[]
-# FlatGeobuf.Header(data)
