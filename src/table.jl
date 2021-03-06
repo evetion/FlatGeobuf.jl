@@ -22,4 +22,4 @@ const lookup = Dict(
 Tables.istable(::Type{<:FlatGeobuffer}) = true
 Tables.rowaccess(::Type{<:FlatGeobuffer}) = true
 Tables.rows(fgb::FlatGeobuffer) = fgb
-Tables.schema(fgb::FlatGeobuffer) = Tables.Schema((map(c -> Symbol(c.name), fgb.header.columns)..., :geom), (map(c -> lookup[c.type], fgb.header.columns)..., Geometry))
+Tables.schema(fgb::FlatGeobuffer) = Tables.Schema((map(c -> Symbol(c.name), fgb.header.columns)..., :geom), (map(x -> x.nullable ? Union{Missing,lookup[x.type]} : lookup[x.type], fgb.header.columns)..., Geometry))

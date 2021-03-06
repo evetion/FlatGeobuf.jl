@@ -49,33 +49,20 @@ function read_file(fn)
     fgb
 end
 
-# iterate
-
-# filter::Union{Nothing,Vector{<:Real}}
-# sizehint!(fgb.features, header.features_count)
-# # Apply spatial filter
-# if !isnothing(filter)
-#     bbox = NodeItem(bboxv[1], bboxv[2], bboxv[3], bboxv[4], 0)
-#     offsets = sort(search(fgb.rtree, bbox, fgb.header.features_count, fgb.header.index_node_size))
-#     for offset in offsets
-#         seek(io, offset)
-#         feature_size = read(io, UInt32)
-#         f = Feature(read(io, feature_size))
-#         push!(fgb.features, f)
-#     end
-# else
-#     for i = 1:header.features_count
-#         feature_size = read(io, UInt32)
-#         f = Feature(read(io, feature_size))
-#         push!(fgb.features, f)
-#     end
-#     @debug "At end of file: $(eof(io))"
-# end
 
 function split_properties(x::Array{UInt8,1}, columns::Vector{Column})
-    offset = 1  # Skip first UInt16
+    offset = 1
     cvalues = []
-    for column in columns
+    for (i, column) in enumerate(columns)
+        if offset + sizeof(UInt16) > length(x)
+            push!(cvalues, missing)
+            continue
+        end
+        key = reinterpret(UInt16, view(x, offset:offset + sizeof(UInt16) - 1))[1]
+        if key != (i - 1)
+            push!(cvalues, missing)
+            continue
+        end
         offset += sizeof(UInt16)
         t = lookup[column.type]
         if t == String
@@ -85,15 +72,14 @@ function split_properties(x::Array{UInt8,1}, columns::Vector{Column})
             offset += size
             push!(cvalues, value)
         else
-            value = reinterpret(t, view(x, offset:offset + sizeof(t)))
+            value = reinterpret(t, view(x, offset:offset + sizeof(t) - 1))[1]
             offset += sizeof(t)
             push!(cvalues, value)
         end
     end
     cnames = Tuple(map(x -> Symbol(x.name), columns))
-    n = NamedTuple{cnames}(Tuple(cvalues))
-    # @info n
-    n
+    ctypes = Tuple{map(x -> x.nullable ? Union{Missing,lookup[x.type]} : lookup[x.type], columns)...}
+    NamedTuple{cnames,ctypes}(Tuple(cvalues))
 end
 
 
@@ -111,5 +97,5 @@ function Base.iterate(fgb::FlatGeobuffer, state::Int=0)
     end
 end
 
-Base.eltype(fgb::FlatGeobuffer) = NamedTuple{(Tuple(map(x -> Symbol(x.name), fgb.header.columns))..., :geom),Tuple{(map(x -> lookup[x.type], fgb.header.columns)..., Geometry)...}}
+Base.eltype(fgb::FlatGeobuffer) = NamedTuple{(Tuple(map(x -> Symbol(x.name), fgb.header.columns))..., :geom),Tuple{(map(x -> x.nullable ? Union{Missing,lookup[x.type]} : lookup[x.type], fgb.header.columns)..., Geometry)...}}
 Base.length(fgb::FlatGeobuffer) = fgb.filtered ? length(fgb.offsets) : fgb.header.features_count

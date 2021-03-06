@@ -1,7 +1,7 @@
 name = "FlatGeobuf"
 uuid = "d985ece1-97de-4d33-914c-38fb84042e15"
 authors = ["Maarten Pronk <git@evetion.nl> and contributors"]
-version = "0.1.0"
+version = "0.1.1"
 
 [deps]
 FlatBuffers = "53afe959-3a16-52fa-a8da-cf864710bae9"
@@ -11,9 +11,3 @@ Tables = "bd369af6-aec1-5ad0-b16a-f7cc5008161c"
 julia = "1"
 FlatBuffers = "0.5"
 Tables = "1.2"
-
-[extras]
-Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
-
-[targets]
-test = ["Test"]
