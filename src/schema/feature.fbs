@@ -1,6 +1,7 @@
 // From https://github.com/bjornharrtell/flatgeobuf/blob/master/src/fbs/header.fbs
 include "header.fbs";
-// namespace FlatGeobuf;
+
+namespace FlatGeobuf;
 
 table Geometry {
   ends: [uint];          // Array of end index in flat coordinates per geometry part
@@ -20,4 +21,3 @@ table Feature {
 }
 
 root_type Feature;
-  

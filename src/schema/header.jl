@@ -83,10 +83,10 @@ FlatBuffers.@with_kw mutable struct Header
     name::String = ""
     envelope::Vector{Float64} = []
     geometry_type::GeometryType = 0
-    hasZ::Bool = false
-    hasM::Bool = false
-    hasT::Bool = false
-    hasTM::Bool = false
+    has_z::Bool = false
+    has_m::Bool = false
+    has_t::Bool = false
+    has_tm::Bool = false
     columns::Vector{Column} = []
     features_count::UInt64 = 0
     index_node_size::UInt16 = 16
