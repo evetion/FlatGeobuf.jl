@@ -3,12 +3,13 @@ using FlatGeobuf
 using FlatBuffers
 using Tables
 using TypedTables
+using Downloads
 
 @testset "FlatGeobuf" begin
     fna = "countries.fgb"
     fnb = "UScounties.fgb"
-    isfile(fna) || download("https://github.com/bjornharrtell/flatgeobuf/blob/master/test/data/countries.fgb?raw=true", fna)
-    isfile(fnb) || download("https://github.com/bjornharrtell/flatgeobuf/blob/master/test/data/UScounties.fgb?raw=true", fnb)
+    isfile(fna) || Downloads.download("https://github.com/bjornharrtell/flatgeobuf/blob/master/test/data/countries.fgb?raw=true", fna)
+    isfile(fnb) || Downloads.download("https://github.com/bjornharrtell/flatgeobuf/blob/master/test/data/UScounties.fgb?raw=true", fnb)
 
     @testset "Construction" begin
         crs = FlatGeobuf.Crs("epsg", 28992, "RD New", "Dutch grid", "proj+=asdas", "codestring")

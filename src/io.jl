@@ -5,7 +5,7 @@ function skipmagic(io::IO)
     magic[2] == 0x67 &&
     magic[3] == 0x62 &&
     magic[4] == 0x03 ||
-    error("File has wrong headar")
+    error("File has wrong header")
 end
 
 
