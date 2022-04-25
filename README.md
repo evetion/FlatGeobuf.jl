@@ -1,5 +1,5 @@
 # FlatGeobuf.jl
-flatgeobuf implementation (https://bjornharrtell.github.io/flatgeobuf/) in Julia.
+A native [flatgeobuf](https://github.com/flatgeobuf/flatgeobuf) implementation in Julia. Flatgeobuf is a cloud optimized geospatial vector format.
 
 # Installation
 ```julia
