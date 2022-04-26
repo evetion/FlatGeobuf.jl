@@ -1,7 +1,7 @@
 name = "FlatGeobuf"
 uuid = "d985ece1-97de-4d33-914c-38fb84042e15"
 authors = ["Maarten Pronk <git@evetion.nl> and contributors"]
-version = "0.1.1"
+version = "0.1.2"
 
 [deps]
 FlatBuffers = "53afe959-3a16-52fa-a8da-cf864710bae9"
