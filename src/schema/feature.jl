@@ -2,35 +2,34 @@
 
 
 
-FlatBuffers.@with_kw mutable struct Geometry
-    ends::Vector{UInt32} = []
-    xy::Vector{Float64} = []
-    z::Vector{Float64} = []
-    m::Vector{Float64} = []
-    t::Vector{Float64} = []
-    tm::Vector{UInt64} = []
-    type::GeometryType = 0
-    parts::Vector{Geometry} = []
+mutable struct Geometry
+    ends::Vector{UInt32}
+    xy::Vector{Float64}
+    z::Vector{Float64}
+    m::Vector{Float64}
+    t::Vector{Float64}
+    tm::Vector{UInt64}
+    type::GeometryType
+    parts::Vector{Geometry}
 end
 FlatBuffers.@ALIGN(Geometry, 1)
-FlatBuffers.slot_offsets(::Type{T}) where {T <: Geometry} = [
+FlatBuffers.slot_offsets(::Type{T}) where {T<:Geometry} = [
     0x00000004, 0x00000006, 0x00000008, 0x0000000A,
     0x0000000C, 0x0000000E, 0x00000010, 0x00000012
 ]
 
 Geometry(buf::AbstractVector{UInt8}) = FlatBuffers.read(Geometry, buf)
 Geometry(io::IO) = FlatBuffers.deserialize(io, Geometry)
-
-FlatBuffers.@with_kw mutable struct Feature
-    geometry::Geometry = Geometry()
-    properties::Vector{UInt8} = []
-    columns::Vector{Column} = []
+mutable struct Feature
+    geometry::Geometry
+    properties::Vector{UInt8}
+    columns::Vector{Column}
 end
 FlatBuffers.@ALIGN(Feature, 1)
-FlatBuffers.slot_offsets(::Type{T}) where {T <: Feature} = [
+FlatBuffers.slot_offsets(::Type{T}) where {T<:Feature} = [
     0x00000004, 0x00000006, 0x00000008
 ]
-FlatBuffers.root_type(::Type{T}) where {T <: Feature} = true
+FlatBuffers.root_type(::Type{T}) where {T<:Feature} = true
 
 Feature(buf::AbstractVector{UInt8}) = FlatBuffers.read(Feature, buf)
 Feature(io::IO) = FlatBuffers.deserialize(io, Feature)

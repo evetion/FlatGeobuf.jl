@@ -8,11 +8,11 @@ struct NodeItem
 end
 
 mutable struct FlatGeobuffer
-    header::Header
+    header::Gen.Header
     rtree::Vector{NodeItem}
     io::IO
-    offset::Int
-    offsets::Vector{Int}
+    offset::Int64
+    offsets::Vector{Int64}
     filtered::Bool
 end
 

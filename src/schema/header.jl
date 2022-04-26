@@ -22,23 +22,24 @@ FlatBuffers.@with_kw mutable struct Column
     type::ColumnType = 0
     title::String = ""
     description::String = ""
-    width::Int32 = -1
-    precision::Int32 = -1
-    scale::Int32 = -1
+    width::Int32 = Int32(-1)
+    precision::Int32 = Int32(-1)
+    scale::Int32 = Int32(-1)
     nullable::Bool = true
     unique::Bool = false
     primary_key::Bool = false
     metadata::String = ""
 end
+
 FlatBuffers.@ALIGN(Column, 1)
-FlatBuffers.slot_offsets(::Type{T}) where {T <: Column} = [
+FlatBuffers.slot_offsets(::Type{T}) where {T<:Column} = [
     0x00000004, 0x00000006, 0x00000008, 0x0000000A,
     0x0000000C, 0x0000000E, 0x00000010, 0x00000012,
     0x00000014, 0x00000016, 0x00000018
 ]
 
-Column(buf::AbstractVector{UInt8}) = FlatBuffers.read(Column, buf)
-Column(io::IO) = FlatBuffers.deserialize(io, Column)
+Column(buf::AbstractVector{UInt8})::Column = FlatBuffers.read(Column, buf)
+Column(io::IO)::Column = FlatBuffers.deserialize(io, Column)
 
 @enum GeometryType::UInt8 begin
     GeometryTypeUnknown = 0
@@ -63,46 +64,46 @@ end
 
 FlatBuffers.@with_kw mutable struct Crs
     org::String = ""
-    code::Int32 = 0
+    code::Int32 = Int32(0)
     name::String = ""
     description::String = ""
     wkt::String = ""
     code_string::String = ""
 end
 FlatBuffers.@ALIGN(Crs, 1)
-FlatBuffers.slot_offsets(::Type{T}) where {T <: Crs} = [
+FlatBuffers.slot_offsets(::Type{T}) where {T<:Crs} = [
     0x00000004, 0x00000006, 0x00000008, 0x0000000A,
     0x0000000C, 0x0000000E
 ]
 
-Crs(buf::AbstractVector{UInt8}) = FlatBuffers.read(Crs, buf)
-Crs(io::IO) = FlatBuffers.deserialize(io, Crs)
+Crs(buf::AbstractVector{UInt8})::Crs = FlatBuffers.read(Crs, buf)
+Crs(io::IO)::Crs = FlatBuffers.deserialize(io, Crs)
 
 
 FlatBuffers.@with_kw mutable struct Header
     name::String = ""
-    envelope::Vector{Float64} = []
+    envelope::Vector{Float64} = Float64[]
     geometry_type::GeometryType = 0
     has_z::Bool = false
     has_m::Bool = false
     has_t::Bool = false
     has_tm::Bool = false
-    columns::Vector{Column} = []
-    features_count::UInt64 = 0
-    index_node_size::UInt16 = 16
+    columns::Vector{Column} = Column[]
+    features_count::UInt64 = UInt64(0)
+    index_node_size::UInt16 = UInt16(16)
     crs::Crs = Crs()
     title::String = ""
     description::String = ""
     metadata::String = ""
 end
 FlatBuffers.@ALIGN(Header, 1)
-FlatBuffers.slot_offsets(::Type{T}) where {T <: Header} = [
+FlatBuffers.slot_offsets(::Type{T}) where {T<:Header} = [
     0x00000004, 0x00000006, 0x00000008, 0x0000000A,
     0x0000000C, 0x0000000E, 0x00000010, 0x00000012,
     0x00000014, 0x00000016, 0x00000018, 0x0000001A,
     0x0000001C, 0x0000001E
 ]
-FlatBuffers.root_type(::Type{T}) where {T <: Header} = true
+FlatBuffers.root_type(::Type{T}) where {T<:Header} = true
 
-Header(buf::AbstractVector{UInt8}) = FlatBuffers.read(Header, buf)
-Header(io::IO) = FlatBuffers.deserialize(io, Header)
+Header(buf::AbstractVector{UInt8})::Header = FlatBuffers.read(Header, buf)
+Header(io::IO)::Header = FlatBuffers.deserialize(io, Header)
