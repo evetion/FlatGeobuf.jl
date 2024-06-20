@@ -2,7 +2,7 @@ using Test
 using FlatGeobuf
 using FlatBuffers
 using Tables
-using TypedTables
+using DataFrames
 using Downloads
 
 @testset "FlatGeobuf" begin
@@ -22,7 +22,9 @@ using Downloads
         h = FlatGeobuf.Header(name="test", crs=crs)
 
         # Write header
-        open("example.bin", "w") do f FlatBuffers.serialize(f, h) end
+        open("example.bin", "w") do f
+            FlatBuffers.serialize(f, h)
+        end
         # Read header again
         nh = open("example.bin", "r") do f
             FlatBuffers.deserialize(f, FlatGeobuf.Header)
@@ -42,7 +44,7 @@ using Downloads
         @test length(features) == 2
 
         fgb = FlatGeobuf.read_file(joinpath(@__DIR__, "null.fgb"))
-        t = Table(fgb)
+        t = DataFrame(fgb)
         @test ismissing(t.date[2])
         @test ismissing(t.name[2])
         @test ismissing(t.number[2])
