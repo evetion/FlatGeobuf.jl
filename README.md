@@ -1,3 +1,5 @@
+[![](https://img.shields.io/badge/docs-dev-blue.svg)](https://evetion.github.io/FlatGeobuf.jl/dev) [![](https://img.shields.io/badge/docs-stable-blue.svg)](https://evetion.github.io/FlatGeobuf.jl/stable) [![CI](https://github.com/evetion/FlatGeobuf.jl/actions/workflows/ci.yml/badge.svg)](https://github.com/evetion/FlatGeobuf.jl/actions/workflows/ci.yml) [![codecov](https://codecov.io/gh/evetion/FlatGeobuf.jl/branch/master/graph/badge.svg?token=PBLSRXFGII)](https://codecov.io/gh/evetion/FlatGeobuf.jl)
+
 # FlatGeobuf.jl
 A native [flatgeobuf](https://github.com/flatgeobuf/flatgeobuf) implementation in Julia. Flatgeobuf is a cloud optimized geospatial vector format.
 
