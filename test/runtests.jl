@@ -4,6 +4,7 @@ using FlatBuffers
 using Tables
 using DataFrames
 using Downloads
+using GeoInterface
 
 @testset "FlatGeobuf" begin
     fna = "countries.fgb"
@@ -35,7 +36,7 @@ using Downloads
     end
 
     @testset "Using testfiles" begin
-        fgb = FlatGeobuf.read_file(fnb)
+        fgb = FlatGeobuf.read(fnb)
         features = collect(fgb)
         @test length(features) == 3221
 
@@ -43,10 +44,17 @@ using Downloads
         features = collect(fgb)
         @test length(features) == 2
 
-        fgb = FlatGeobuf.read_file(joinpath(@__DIR__, "null.fgb"))
+        fgb = FlatGeobuf.read(joinpath(@__DIR__, "null.fgb"))
         t = DataFrame(fgb)
         @test ismissing(t.date[2])
         @test ismissing(t.name[2])
         @test ismissing(t.number[2])
+    end
+
+    @testset "GeoInterface" begin
+        fgb = FlatGeobuf.read(fnb)
+        @test GeoInterface.testfeaturecollection(fgb)
+        @test GeoInterface.testfeature(iterate(fgb)[1])
+        @test GeoInterface.testgeometry(iterate(fgb)[1].geometry)
     end
 end

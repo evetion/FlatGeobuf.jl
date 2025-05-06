@@ -12,7 +12,7 @@ A native [flatgeobuf](https://github.com/flatgeobuf/flatgeobuf) implementation i
 ```julia
 import FlatGeobuf; const FGB=FlatGeobuf
 
-fgb = FGB.read_file("countries.fgb")
+fgb = FGB.read("countries.fgb")
 FlatGeobuffer with 179 GeometryTypeMultiPolygon features.
 ```
 
@@ -42,8 +42,9 @@ DataFrame(fgb)
 
 FlatGeobuffers have a spatial index that we can query with a bounding box
 ```julia
-bbox = [-92.73405699999999, 32.580974999999995, -92.73405699999999, 32.580974999999995]
-filter!(fgb, bbox)
+using Extents
+ex = Extent(X=(-92.73405699999999, -92.73405699999999), Y=(32.580974999999995, 32.580974999999995))
+filter!(fgb, ex)
 julia> DataFrame(fgb)
 2×3 DataFrame. Omitted printing of 1 columns
 │ Row │ id     │ name                     │
@@ -54,7 +55,6 @@ julia> DataFrame(fgb)
 ```
 
 # TODO
-* GeoInterface support
 * Write support
 
 # Updating the Schema

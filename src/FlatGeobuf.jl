@@ -10,8 +10,7 @@ include("flatgeobuffer.jl")
 include("index.jl")
 include("io.jl")
 include("table.jl")
-
-export findall, read_file
+include("geointerface.jl")
 
 
 end # module
