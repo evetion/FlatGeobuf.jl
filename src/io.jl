@@ -1,6 +1,6 @@
 
 function skipmagic(io::IO)
-    magic = read(io, 8)
+    magic = Base.read(io, 8)
     magic[1] == 0x66 &&
     magic[2] == 0x67 &&
     magic[3] == 0x62 &&
@@ -22,14 +22,15 @@ function calc_rtree_nodes(n_items::UInt64, node_size::UInt16)
 end
 
 
+@deprecate read_file(filename::AbstractString) read(filename)
 
-function read_file(fn)
+function read(fn)
     io = open(fn)
     skipmagic(io)
     @debug "Start at offset: $(position(io))"
-    header_size = read(io, UInt32)
+    header_size = Base.read(io, UInt32)
     @debug "headerSize: $header_size"
-    header = Header(read(io, header_size))
+    header = Header(Base.read(io, header_size))
     fgb = FlatGeobuffer(header, [], io, 0, [], false)
     @debug header, header.crs, header.columns
     rtree_size = 0
@@ -38,7 +39,7 @@ function read_file(fn)
         n_nodes = calc_rtree_nodes(header.features_count, header.index_node_size)
         sizehint!(fgb.rtree, n_nodes)
         for i in 1:n_nodes
-            node = read(io, NodeItem)
+            node = Base.read(io, NodeItem)
             push!(fgb.rtree, node)
         end
         rtree_size += n_nodes * sizeof(NodeItem)
@@ -50,6 +51,35 @@ function read_file(fn)
 end
 
 
+function _getproperty(x::Vector{UInt8}, i, columns)
+    offset = 1
+    while offset < length(x)
+        if offset + sizeof(UInt16) > length(x)
+            return missing
+        end
+        key = reinterpret(UInt16, view(x, offset:offset+sizeof(UInt16)-1))[1]
+        offset += sizeof(UInt16)
+        column = columns[key+1]
+        t = lookup[column.type]
+        if t == String
+            size = reinterpret(UInt32, view(x, offset:offset+sizeof(UInt32)-1))[1]
+            offset += sizeof(UInt32)
+            if i == key + 1
+                value = String(view(x, offset:offset+size-1))
+                return value
+            end
+            offset += size
+        else
+            if i == key + 1
+                value = reinterpret(t, view(x, offset:offset+sizeof(t)-1))[1]
+                return value
+            end
+            offset += sizeof(t)
+        end
+    end
+    return missing
+end
+
 function split_properties(x::Array{UInt8,1}, columns::Vector{Column})
     offset = 1
     cvalues = []
@@ -58,7 +88,7 @@ function split_properties(x::Array{UInt8,1}, columns::Vector{Column})
             push!(cvalues, missing)
             continue
         end
-        key = reinterpret(UInt16, view(x, offset:offset + sizeof(UInt16) - 1))[1]
+        key = reinterpret(UInt16, view(x, offset:offset+sizeof(UInt16)-1))[1]
         if key != (i - 1)
             push!(cvalues, missing)
             continue
@@ -66,13 +96,13 @@ function split_properties(x::Array{UInt8,1}, columns::Vector{Column})
         offset += sizeof(UInt16)
         t = lookup[column.type]
         if t == String
-            size = reinterpret(UInt32, view(x, offset:offset + sizeof(UInt32) - 1))[1]
+            size = reinterpret(UInt32, view(x, offset:offset+sizeof(UInt32)-1))[1]
             offset += sizeof(UInt32)
-            value = String(view(x, offset:offset + size - 1))
+            value = String(view(x, offset:offset+size-1))
             offset += size
             push!(cvalues, value)
         else
-            value = reinterpret(t, view(x, offset:offset + sizeof(t) - 1))[1]
+            value = reinterpret(t, view(x, offset:offset+sizeof(t)-1))[1]
             offset += sizeof(t)
             push!(cvalues, value)
         end
@@ -82,6 +112,23 @@ function split_properties(x::Array{UInt8,1}, columns::Vector{Column})
     NamedTuple{cnames,ctypes}(Tuple(cvalues))
 end
 
+function Base.propertynames(f::Feature)
+    names = map(x -> Symbol(x.name), getfield(f, :columns))
+    names = push!(names, :geometry)
+    names
+end
+
+function Base.getproperty(f::Feature, name::Symbol)
+    hasfield(Feature, name) && return getfield(f, name)
+    i = findfirst(x -> Symbol(getfield(x, :name)) == name, getfield(f, :columns))
+    isnothing(i) && error("No such property: $name")
+    _getproperty(f.properties, i, f.columns)
+end
+
+function Base.convert(::Type{NamedTuple}, f::Feature)
+    split_properties(f.properties, f.columns)
+end
+
 
 """Iteration of FGB file."""
 function Base.iterate(fgb::FlatGeobuffer, state::Int=0)
@@ -89,13 +136,27 @@ function Base.iterate(fgb::FlatGeobuffer, state::Int=0)
         return nothing
     else
         state == 0 && seek(fgb.io, fgb.offset)
-        fgb.filtered && seek(fgb.io, fgb.offsets[state + 1] + fgb.offset)
-        feature_size = read(fgb.io, UInt32)
-        f = Feature(read(fgb.io, feature_size))
-        props = split_properties(f.properties, fgb.header.columns)
-        (props..., geom = f.geometry), state + 1
+        fgb.filtered && seek(fgb.io, fgb.offsets[state+1] + fgb.offset)
+        feature_size = Base.read(fgb.io, UInt32)
+        f = Feature(Base.read(fgb.io, feature_size))
+        isempty(f.columns) && (f.columns = fgb.header.columns)
+        # props = split_properties(f.properties, fgb.header.columns)
+        # (props..., geom=f.geometry), state + 1
+        f, state + 1
     end
 end
 
-Base.eltype(fgb::FlatGeobuffer) = NamedTuple{(Tuple(map(x -> Symbol(x.name), fgb.header.columns))..., :geom),Tuple{(map(x -> x.nullable ? Union{Missing,lookup[x.type]} : lookup[x.type], fgb.header.columns)..., Geometry)...}}
+function Base.getindex(fgb::FlatGeobuffer, i::Integer)
+    if fgb.filtered
+        seek(fgb.io, fgb.offsets[i] + fgb.offset)
+    else
+        seek(fgb.io, fgb.offset)
+    end
+    feature_size = Base.read(fgb.io, UInt32)
+    f = Feature(Base.read(fgb.io, feature_size))
+    isempty(f.columns) && (f.columns = fgb.header.columns)
+    f
+end
+
+Base.eltype(fgb::FlatGeobuffer) = Feature
 Base.length(fgb::FlatGeobuffer) = fgb.filtered ? length(fgb.offsets) : fgb.header.features_count

@@ -1,13 +1,16 @@
-
+using Extents
 function Base.read(io::IO, ::Type{NodeItem})
     NodeItem(
-        read(io, Float64),
-        read(io, Float64),
-        read(io, Float64),
-        read(io, Float64),
-        read(io, UInt64)
+        Base.read(io, Float64),
+        Base.read(io, Float64),
+        Base.read(io, Float64),
+        Base.read(io, Float64),
+        Base.read(io, UInt64)
     )
 end
+Base.convert(::Type{Extent}, node::NodeItem) = Extent(X=(node.min_x, node.max_x), Y=(node.min_y, node.max_y))
+Base.convert(::Type{NodeItem}, ex::Extent) = NodeItem(ex.X[1], ex.Y[1], ex.X[2], ex.Y[2], 0)
+
 function intersects(a::NodeItem, b::NodeItem)
     !(
         a.min_x > b.max_x ||
@@ -30,7 +33,7 @@ function search(nodes::Vector{NodeItem}, bbox::NodeItem, nfeatures::UInt64, node
         if intersects(bbox, node)
             if i <= n_non_leaves
                 # Still part of tree, add all child nodes to queue
-                leaves = Int(node.offset + 1):Int(node.offset + 1) + Int(node_size) - 1
+                leaves = Int(node.offset + 1):Int(node.offset + 1)+Int(node_size)-1
                 append!(queue, zip(leaves, nodes[leaves]))
             else
                 # Or terminal node
@@ -43,17 +46,23 @@ end
 
 
 """Find all features within a given bounding box."""
-function findall()
+function Base.filter(fgb::FlatGeobuffer, bboxv::Vector{<:Real})
     bbox = NodeItem(bboxv[1], bboxv[2], bboxv[3], bboxv[4], 0)
     results = search(fgb.rtree, bbox, fgb.header.features_count, fgb.header.index_node_size)
     # Results has offsets into file, but we already parsed the file
     # So we use the offsets to find the relative location of features
-    offsets = sort(map(x -> x.offset, nodes[end - nfeatures + 1:end]))
+    offsets = sort(map(x -> x.offset, nodes[end-nfeatures+1:end]))
     fgb.features[findfirst.(isequal.(results), Ref(offsets))]
 end
 
 function Base.filter!(fgb::FlatGeobuffer, bboxv::Vector{<:Real})
     bbox = NodeItem(bboxv[1], bboxv[2], bboxv[3], bboxv[4], 0)
+    Base.filter!(fgb, bbox)
+end
+Base.filter!(fgb::FlatGeobuffer, ex::Extent) = Base.filter!(fgb, convert(NodeItem, ex))
+
+function Base.filter!(fgb::FlatGeobuffer, bbox::NodeItem)
     fgb.offsets = search(fgb.rtree, bbox, fgb.header.features_count, fgb.header.index_node_size)
     fgb.filtered = true
+    fgb
 end

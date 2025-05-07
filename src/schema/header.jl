@@ -31,7 +31,7 @@ FlatBuffers.@with_kw mutable struct Column
     metadata::String = ""
 end
 FlatBuffers.@ALIGN(Column, 1)
-FlatBuffers.slot_offsets(::Type{T}) where {T <: Column} = [
+FlatBuffers.slot_offsets(::Type{T}) where {T<:Column} = [
     0x00000004, 0x00000006, 0x00000008, 0x0000000A,
     0x0000000C, 0x0000000E, 0x00000010, 0x00000012,
     0x00000014, 0x00000016, 0x00000018
@@ -61,6 +61,46 @@ Column(io::IO) = FlatBuffers.deserialize(io, Column)
     GeometryTypeTriangle = 17
 end
 
+function childtype(gt::GeometryType)
+    if gt == GeometryTypeUnknown
+        return GeometryTypeUnknown
+    elseif gt == GeometryTypePoint
+        return GeometryTypePoint
+    elseif gt == GeometryTypeLineString
+        return GeometryTypePoint
+    elseif gt == GeometryTypePolygon
+        return GeometryTypeLineString
+    elseif gt == GeometryTypeMultiPoint
+        return GeometryTypePoint
+    elseif gt == GeometryTypeMultiLineString
+        return GeometryTypeLineString
+    elseif gt == GeometryTypeMultiPolygon
+        return GeometryTypeLineString
+    elseif gt == GeometryTypeGeometryCollection
+        return GeometryTypeUnknown
+    elseif gt == GeometryTypeCircularString
+        return GeometryTypePoint
+    elseif gt == GeometryTypeCompoundCurve
+        return GeometryTypeCircularString
+    elseif gt == GeometryTypeCurvePolygon
+        return GeometryTypeCircularString
+    elseif gt == GeometryTypeMultiCurve
+        return GeometryTypeCurve
+    elseif gt == GeometryTypeMultiSurface
+        return GeometryTypeSurface
+    elseif gt == GeometryTypeCurve
+        return GeometryTypePoint
+    elseif gt == GeometryTypeSurface
+        return GeometryTypePolygon
+    elseif gt == GeometryTypePolyhedralSurface
+        return GeometryTypePolygon
+    elseif gt == GeometryTypeTIN
+        return GeometryTypeLineString
+    elseif gt == GeometryTypeTriangle
+        return GeometryTypeLineString
+    end
+end
+
 FlatBuffers.@with_kw mutable struct Crs
     org::String = ""
     code::Int32 = 0
@@ -70,7 +110,7 @@ FlatBuffers.@with_kw mutable struct Crs
     code_string::String = ""
 end
 FlatBuffers.@ALIGN(Crs, 1)
-FlatBuffers.slot_offsets(::Type{T}) where {T <: Crs} = [
+FlatBuffers.slot_offsets(::Type{T}) where {T<:Crs} = [
     0x00000004, 0x00000006, 0x00000008, 0x0000000A,
     0x0000000C, 0x0000000E
 ]
@@ -96,13 +136,13 @@ FlatBuffers.@with_kw mutable struct Header
     metadata::String = ""
 end
 FlatBuffers.@ALIGN(Header, 1)
-FlatBuffers.slot_offsets(::Type{T}) where {T <: Header} = [
+FlatBuffers.slot_offsets(::Type{T}) where {T<:Header} = [
     0x00000004, 0x00000006, 0x00000008, 0x0000000A,
     0x0000000C, 0x0000000E, 0x00000010, 0x00000012,
     0x00000014, 0x00000016, 0x00000018, 0x0000001A,
     0x0000001C, 0x0000001E
 ]
-FlatBuffers.root_type(::Type{T}) where {T <: Header} = true
+FlatBuffers.root_type(::Type{T}) where {T<:Header} = true
 
 Header(buf::AbstractVector{UInt8}) = FlatBuffers.read(Header, buf)
 Header(io::IO) = FlatBuffers.deserialize(io, Header)
