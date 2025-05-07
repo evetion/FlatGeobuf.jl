@@ -8,8 +8,8 @@ function Base.read(io::IO, ::Type{NodeItem})
         Base.read(io, UInt64)
     )
 end
-Base.convert(Extent, node::NodeItem) = Extent(X=(node.min_x, node.max_x), Y=(node.min_y, node.max_y))
-Base.convert(NodeItem, ex::Extent) = NodeItem(ex.X[1], ex.Y[1], ex.X[2], ex.Y[2], 0)
+Base.convert(::Type{Extent}, node::NodeItem) = Extent(X=(node.min_x, node.max_x), Y=(node.min_y, node.max_y))
+Base.convert(::Type{NodeItem}, ex::Extent) = NodeItem(ex.X[1], ex.Y[1], ex.X[2], ex.Y[2], 0)
 
 function intersects(a::NodeItem, b::NodeItem)
     !(
