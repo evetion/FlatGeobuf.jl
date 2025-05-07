@@ -3,6 +3,7 @@ using FlatGeobuf
 using FlatBuffers
 using Tables
 using DataFrames
+using Extents
 using Downloads
 using GeoInterface
 
@@ -51,7 +52,20 @@ using GeoInterface
         @test ismissing(t.number[2])
     end
 
+    @testset "Filter" begin
+        fgb = FlatGeobuf.read(fna)
+        @test length(fgb) == 179
+        ex = Extent(X=(-92.73405699999999, -92.73405699999999), Y=(32.580974999999995, 32.580974999999995))
+        filter!(fgb, ex)
+        @test length(fgb) == 2
+    end
+
     @testset "GeoInterface" begin
+        fgb = FlatGeobuf.read(fna)
+        @test GeoInterface.testfeaturecollection(fgb)
+        @test GeoInterface.testfeature(iterate(fgb)[1])
+        @test GeoInterface.testgeometry(iterate(fgb)[1].geometry)
+
         fgb = FlatGeobuf.read(fnb)
         @test GeoInterface.testfeaturecollection(fgb)
         @test GeoInterface.testfeature(iterate(fgb)[1])

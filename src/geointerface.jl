@@ -27,7 +27,7 @@ GeoInterface.properties(f::Feature) = split_properties(f.properties, f.columns)
 GeoInterface.isgeometry(::Type{Geometry}) = true
 GeoInterface.ncoord(::GeoInterface.AbstractTrait, geom::Geometry) = 2 + !isempty(geom.z) + !isempty(geom.m)
 GeoInterface.geomtrait(geom::Geometry) = _geomtrait(geom.type)
-GeoInterface.geomtrait(fgb::FlatGeobuffer) = _geomtrait(fgb.header.geometry_type)
+# GeoInterface.geomtrait(fgb::FlatGeobuffer) = _geomtrait(fgb.header.geometry_type)
 function _geomtrait(type::GeometryType)
     if type == GeometryTypePoint
         return GeoInterface.PointTrait()
