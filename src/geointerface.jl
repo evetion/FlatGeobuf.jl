@@ -84,24 +84,24 @@ function GeoInterface.getgeom(::GeoInterface.AbstractTrait, geom::Geometry, i::I
         return geom.parts[i]
     end
 
-    # Multi
+    index = i
     if !isempty(geom.ends)
-        i = i == 1 ? 1 : geom.ends[i-1]
         j = geom.ends[i]
-        # Single
+        i = i == 1 ? 1 : geom.ends[i-1]
     elseif i == 1
         i = 1
-        j = length(geom.xy)
+        j = length(geom.xy) ÷ 2
     else
         throw(BoundsError(geom, i))
     end
+
     Geometry(
-        ends=isempty(geom.ends) ? UInt32[] : UInt32[i:j],
-        xy=isempty(geom.xy) ? Float64[] : geom.xy[i:j],
+        ends=isempty(geom.ends) ? UInt32[] : geom.ends[index:index],
+        xy=isempty(geom.xy) ? Float64[] : geom.xy[(i*2)-1:(j*2)],
         z=isempty(geom.z) ? Float64[] : geom.z[i:j],
         m=isempty(geom.m) ? Float64[] : geom.m[i:j],
         t=isempty(geom.t) ? Float64[] : geom.t[i:j],
-        tm=isempty(geom.tm) ? UInt64[] : geom.tm[i:j],
+        tm=isempty(geom.tm) ? UInt64[] : geom.tm[i:i],
         type=childtype(geom.type),
         parts=Geometry[]
     )
@@ -110,7 +110,7 @@ end
 GeoInterface.ngeom(::GeoInterface.AbstractLineStringTrait, geom::Geometry) = length(geom.xy) ÷ 2
 function GeoInterface.getgeom(::GeoInterface.AbstractLineStringTrait, geom::Geometry, i::Integer)
     Geometry(
-        ends=isempty(geom.ends) ? UInt32[] : UInt32[i:i],
+        ends=UInt32[],
         xy=isempty(geom.xy) ? Float64[] : geom.xy[(i*2)-1:(i*2)],
         z=isempty(geom.z) ? Float64[] : geom.z[i:i],
         m=isempty(geom.m) ? Float64[] : geom.m[i:i],
