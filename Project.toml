@@ -1,7 +1,7 @@
 name = "FlatGeobuf"
 uuid = "d985ece1-97de-4d33-914c-38fb84042e15"
 authors = ["Maarten Pronk <git@evetion.nl> and contributors"]
-version = "0.2.0"
+version = "0.2.1"
 
 [deps]
 DataAPI = "9a962f9c-6df0-11e9-0e5d-c546b8b5ee8a"
