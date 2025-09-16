@@ -10,7 +10,7 @@ A native [flatgeobuf](https://github.com/flatgeobuf/flatgeobuf) implementation i
 
 # Usage
 ```julia
-import FlatGeobuf; const FGB=FlatGeobuf
+import FlatGeobuf as FGB
 
 fgb = FGB.read("countries.fgb")
 FlatGeobuffer with 179 GeometryTypeMultiPolygon features.
