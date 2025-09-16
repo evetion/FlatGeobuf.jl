@@ -134,3 +134,10 @@ function GeoInterface.getcoord(::GeoInterface.PointTrait, geom::Geometry, i)
         throw(BoundsError(geom, i))
     end
 end
+
+# coordtype implementation - FlatGeobuf always uses Float64
+if :coordtype in names(GeoInterface; all = true)
+    GeoInterface.coordtype(::GeoInterface.AbstractGeometryTrait, geom::Geometry) = Float64
+    GeoInterface.coordtype(::GeoInterface.FeatureTrait, feature::Feature) = Float64
+    GeoInterface.coordtype(::GeoInterface.FeatureCollectionTrait, fc::FlatGeobuffer) = Float64
+end
