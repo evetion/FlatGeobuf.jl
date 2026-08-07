@@ -11,6 +11,7 @@ include("index.jl")
 include("io.jl")
 include("table.jl")
 include("geointerface.jl")
+include("write.jl")
 
 
 end # module

@@ -54,8 +54,34 @@ julia> DataFrame(fgb)
 │ 2   │ USA    │ United States of America │
 ```
 
-# TODO
-* Write support
+## Writing FlatGeobuf files
+
+Write an existing FlatGeobuffer back to disk:
+```julia
+fgb = FGB.read("countries.fgb")
+FGB.write("countries_copy.fgb", fgb)
+```
+
+Write any Tables.jl-compatible table with GeoInterface geometries:
+```julia
+using DataFrames
+
+# Create a DataFrame with geometries
+df = DataFrame(
+    name = ["A", "B", "C"],
+    value = [1.0, 2.0, 3.0],
+    geometry = [point1, point2, point3]  # Any GeoInterface-compatible geometries
+)
+
+FGB.write("points.fgb", df)
+```
+
+Optional parameters:
+- `geometrycolumn`: Name of the geometry column (defaults to `GeoInterface.geometrycolumns(table)` or `:geometry`)
+- `crs`: Coordinate reference system (defaults to `GeoInterface.crs(table)`, or e.g., `GeoFormatTypes.EPSG(4326)`)
+- `name`: Dataset name for the header
+
+Note: Spatial index generation is not yet supported; written files will not have an R-tree index.
 
 # Updating the Schema
 I've used https://github.com/rjkat/flatbuffers-julia to autogenerate the files found in `src/schema`, but had to adapt them. Good autogeneration from schema is broken as of now. Probably needs waiting on a 1.6/1.7 Julia release so https://github.com/JuliaLang/julia/pull/32658 is merged, so an official flatbuffer implementation can be made over at https://github.com/google/flatbuffers/pull/5088.
