@@ -7,6 +7,7 @@ include("schema/header.jl")
 include("schema/feature.jl")
 
 include("flatgeobuffer.jl")
+include("packedrtree.jl")
 include("index.jl")
 include("io.jl")
 include("table.jl")
