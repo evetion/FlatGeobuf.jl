@@ -52,6 +52,29 @@ using GeoInterface
         @test ismissing(t.number[2])
     end
 
+    @testset "Corrupt files" begin
+        function file(header, rest=UInt8[])
+            buf = IOBuffer()
+            FlatBuffers.serialize(buf, header)
+            bytes = take!(buf)
+            fn = tempname()
+            write(fn, UInt8[0x66, 0x67, 0x62, 0x03, 0x66, 0x67, 0x62, 0x00], UInt32(length(bytes)), bytes, rest)
+            fn
+        end
+        # Sizes that don't fit in the file
+        bytes = read(fna)
+        bytes[9:12] .= 0xff
+        fn = tempname()
+        write(fn, bytes)
+        @test_throws ErrorException FlatGeobuf.read(fn)
+        @test_throws ErrorException FlatGeobuf.read(file(FlatGeobuf.Header(features_count=10^12)))
+        fgb = FlatGeobuf.read(file(FlatGeobuf.Header(features_count=1, index_node_size=0), [reinterpret(UInt8, [UInt32(1000)]); zeros(UInt8, 16)]))
+        @test_throws ErrorException first(fgb)
+        # An index without features, or with a node size of 1
+        @test_throws ErrorException FlatGeobuf.read(file(FlatGeobuf.Header(features_count=0)))
+        @test_throws ErrorException FlatGeobuf.read(file(FlatGeobuf.Header(features_count=1, index_node_size=1)))
+    end
+
     @testset "Filter" begin
         fgb = FlatGeobuf.read(fna)
         @test length(fgb) == 179

@@ -22,19 +22,29 @@ function calc_rtree_nodes(n_items::UInt64, node_size::UInt16)
 end
 
 
+# Read a size prefixed flatbuffer, checking that the size fits in the rest of the file
+function read_sizeprefixed(io::IO)
+    n = Base.read(io, UInt32)
+    8 <= n <= filesize(io) - position(io) || error("Invalid size $n at position $(position(io) - 4).")
+    Base.read(io, n)
+end
+
 @deprecate read_file(filename::AbstractString) read(filename)
 
 function read(fn)
     io = open(fn)
     skipmagic(io)
     @debug "Start at offset: $(position(io))"
-    header_size = Base.read(io, UInt32)
-    @debug "headerSize: $header_size"
-    header = Header(Base.read(io, header_size))
+    header = Header(read_sizeprefixed(io))
     fgb = FlatGeobuffer(header, [], io, 0, [], false)
     @debug header, header.crs, header.columns
+    # Each feature takes at least 12 bytes, and with an index also a leaf node
+    min_size = 12 + (header.index_node_size > 0) * sizeof(NodeItem)
+    header.features_count <= (filesize(io) - position(io)) ÷ min_size || error("The $(header.features_count) features don't fit in the file.")
     rtree_size = 0
     if header.index_node_size > 0
+        header.index_node_size >= 2 || error("Invalid index node size $(header.index_node_size).")
+        header.features_count > 0 || error("Index without features.")
         @debug "Tree start at offset ($(position(io)))"
         n_nodes = calc_rtree_nodes(header.features_count, header.index_node_size)
         sizehint!(fgb.rtree, n_nodes)
@@ -137,8 +147,7 @@ function Base.iterate(fgb::FlatGeobuffer, state::Int=0)
     else
         state == 0 && seek(fgb.io, fgb.offset)
         fgb.filtered && seek(fgb.io, fgb.offsets[state+1] + fgb.offset)
-        feature_size = Base.read(fgb.io, UInt32)
-        f = Feature(Base.read(fgb.io, feature_size))
+        f = Feature(read_sizeprefixed(fgb.io))
         isempty(f.columns) && (f.columns = fgb.header.columns)
         # props = split_properties(f.properties, fgb.header.columns)
         # (props..., geom=f.geometry), state + 1
@@ -152,8 +161,7 @@ function Base.getindex(fgb::FlatGeobuffer, i::Integer)
     else
         seek(fgb.io, fgb.offset)
     end
-    feature_size = Base.read(fgb.io, UInt32)
-    f = Feature(Base.read(fgb.io, feature_size))
+    f = Feature(read_sizeprefixed(fgb.io))
     isempty(f.columns) && (f.columns = fgb.header.columns)
     f
 end
