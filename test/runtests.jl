@@ -127,13 +127,18 @@ using InlineStrings
         @test df[!, Not(:geometry)] == df2[!, Not(:geometry)]
         @test GeoInterface.coordinates.(df.geometry) == GeoInterface.coordinates.(df2.geometry)
 
-        # Like GDAL, the size prefixed header and features keep 8-byte alignment
-        bytes, pos, aligned = read(fn), 8, true
-        while pos < length(bytes)
-            pos += 4 + reinterpret(UInt32, bytes[pos+1:pos+4])[1]
-            aligned &= pos % 8 == 0
+        # Like GDAL, the header and every feature end at a multiple of 8 bytes
+        ends = open(fn) do io
+            FlatGeobuf.skipmagic(io)
+            ends = Int[]
+            while !eof(io)
+                skip(io, read(io, UInt32))
+                push!(ends, position(io))
+            end
+            ends
         end
-        @test aligned && pos == length(bytes)
+        @test length(ends) == 1 + length(fgb)
+        @test all(iszero, ends .% 8)
 
         # A file written by GDAL keeps its column types (DateTime is read as String)
         fgb = FlatGeobuf.read(joinpath(@__DIR__, "null.fgb"))
