@@ -70,5 +70,16 @@ using GeoInterface
         @test GeoInterface.testfeaturecollection(fgb)
         @test GeoInterface.testfeature(iterate(fgb)[1])
         @test GeoInterface.testgeometry(iterate(fgb)[1].geometry)
+
+        # Collections store their Z values in their parts
+        poly = FlatGeobuf.Geometry(xy=[0.0, 0.0, 1.0, 0.0, 1.0, 1.0, 0.0, 0.0], z=[1.0, 2.0, 3.0, 1.0], type=FlatGeobuf.GeometryTypePolygon)
+        mp = FlatGeobuf.Geometry(parts=[poly], type=FlatGeobuf.GeometryTypeMultiPolygon)
+        @test GeoInterface.is3d(mp) && !GeoInterface.ismeasured(mp)
+        @test GeoInterface.ncoord(mp) == 3
+        # M without Z
+        point = FlatGeobuf.Geometry(xy=[1.0, 2.0], m=[4.0], type=FlatGeobuf.GeometryTypePoint)
+        @test !GeoInterface.is3d(point) && GeoInterface.ismeasured(point)
+        @test GeoInterface.m(point) == 4.0
+        @test GeoInterface.coordinates(point) == [1.0, 2.0, 4.0]
     end
 end
