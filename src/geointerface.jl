@@ -25,7 +25,14 @@ GeoInterface.geometry(f::Feature) = f.geometry
 GeoInterface.properties(f::Feature) = split_properties(f.properties, f.columns)
 
 GeoInterface.isgeometry(::Type{Geometry}) = true
-GeoInterface.ncoord(::GeoInterface.AbstractTrait, geom::Geometry) = 2 + !isempty(geom.z) + !isempty(geom.m)
+# Collections store their coordinates in their parts
+_is3d(geom::Geometry) = isempty(geom.parts) ? !isempty(geom.z) : _is3d(first(geom.parts))
+_ismeasured(geom::Geometry) = isempty(geom.parts) ? !isempty(geom.m) : _ismeasured(first(geom.parts))
+function GeoInterface.coordnames(::GeoInterface.AbstractGeometryTrait, geom::Geometry)
+    z, m = _is3d(geom), _ismeasured(geom)
+    z && m ? (:X, :Y, :Z, :M) : z ? (:X, :Y, :Z) : m ? (:X, :Y, :M) : (:X, :Y)
+end
+GeoInterface.ncoord(::GeoInterface.AbstractTrait, geom::Geometry) = 2 + _is3d(geom) + _ismeasured(geom)
 GeoInterface.geomtrait(geom::Geometry) = _geomtrait(geom.type)
 # GeoInterface.geomtrait(fgb::FlatGeobuffer) = _geomtrait(fgb.header.geometry_type)
 function _geomtrait(type::GeometryType)
@@ -128,7 +135,7 @@ function GeoInterface.getcoord(::GeoInterface.PointTrait, geom::Geometry, i)
         geom.xy[2]
     elseif i == 3 && !isempty(geom.z)
         geom.z[1]
-    elseif i == 4 && !isempty(geom.m)
+    elseif i == 3 + !isempty(geom.z) && !isempty(geom.m)
         geom.m[1]
     else
         throw(BoundsError(geom, i))
