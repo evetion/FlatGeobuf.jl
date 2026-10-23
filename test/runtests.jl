@@ -181,6 +181,9 @@ using GeoInterface
         @test ismissing(t.date[2])
         @test ismissing(t.name[2])
         @test ismissing(t.number[2])
+        # Features without a geometry type have the header type
+        @test GeoInterface.geomtrait(t.geometry[1]) == GeoInterface.PointTrait()
+        @test GeoInterface.geomtrait(fgb[1].geometry) == GeoInterface.PointTrait()
     end
 
     @testset "Filter" begin
