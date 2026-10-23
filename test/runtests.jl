@@ -212,5 +212,16 @@ using GeoInterface
         mls = FlatGeobuf.Geometry(xy=[0.0, 0.0, 1.0, 1.0, 2.0, 2.0, 3.0, 3.0], tm=UInt64[1, 2, 3, 4], ends=UInt32[2, 4], type=FlatGeobuf.GeometryTypeMultiLineString)
         @test GeoInterface.getgeom(mls, 2).xy == [2.0, 2.0, 3.0, 3.0]
         @test GeoInterface.getgeom(mls, 2).tm == UInt64[3, 4]
+
+        # Collections store their Z values in their parts
+        poly = FlatGeobuf.Geometry(xy=[0.0, 0.0, 1.0, 0.0, 1.0, 1.0, 0.0, 0.0], z=[1.0, 2.0, 3.0, 1.0], type=FlatGeobuf.GeometryTypePolygon)
+        mp = FlatGeobuf.Geometry(parts=[poly], type=FlatGeobuf.GeometryTypeMultiPolygon)
+        @test GeoInterface.is3d(mp) && !GeoInterface.ismeasured(mp)
+        @test GeoInterface.ncoord(mp) == 3
+        # M without Z
+        point = FlatGeobuf.Geometry(xy=[1.0, 2.0], m=[4.0], type=FlatGeobuf.GeometryTypePoint)
+        @test !GeoInterface.is3d(point) && GeoInterface.ismeasured(point)
+        @test GeoInterface.m(point) == 4.0
+        @test GeoInterface.coordinates(point) == [1.0, 2.0, 4.0]
     end
 end
