@@ -45,66 +45,122 @@ function _crs(crs::GeoFormatTypes.GeoFormat)
     _crs(wkt)
 end
 
-# Append the coordinates of a point to `g`
-function _addpoint!(g::Geometry, p, z::Bool, m::Bool)
-    push!(g.xy, GeoInterface.x(p), GeoInterface.y(p))
-    z && push!(g.z, GeoInterface.z(p))
-    m && push!(g.m, GeoInterface.m(p))
+# The coordinates of one geometry, or of one part of a collection, reused for all of them
+struct Coordinates
+    ends::Vector{UInt32}
+    xy::Vector{Float64}
+    z::Vector{Float64}
+    m::Vector{Float64}
+end
+Coordinates() = Coordinates(UInt32[], Float64[], Float64[], Float64[])
+
+function _addpoint!(c::Coordinates, p, z::Bool, m::Bool)
+    push!(c.xy, GeoInterface.x(p), GeoInterface.y(p))
+    z && push!(c.z, GeoInterface.z(p))
+    m && push!(c.m, GeoInterface.m(p))
 end
 
-_geometry!(g, ::GeoInterface.PointTrait, geom, z, m) = _addpoint!(g, geom, z, m)
-function _geometry!(g, ::Union{GeoInterface.AbstractLineStringTrait,GeoInterface.MultiPointTrait}, geom, z, m)
+_coordinates!(c, ::GeoInterface.PointTrait, geom, z, m) = _addpoint!(c, geom, z, m)
+function _coordinates!(c, ::Union{GeoInterface.AbstractLineStringTrait,GeoInterface.MultiPointTrait}, geom, z, m)
     for p in GeoInterface.getpoint(geom)
-        _addpoint!(g, p, z, m)
+        _addpoint!(c, p, z, m)
     end
 end
-function _geometry!(g, ::Union{GeoInterface.PolygonTrait,GeoInterface.MultiLineStringTrait}, geom, z, m)
+function _coordinates!(c, ::Union{GeoInterface.PolygonTrait,GeoInterface.MultiLineStringTrait}, geom, z, m)
     for ring in GeoInterface.getgeom(geom)
-        _geometry!(g, GeoInterface.LineStringTrait(), ring, z, m)
-        push!(g.ends, UInt32(length(g.xy) ÷ 2))
-    end
-end
-function _geometry!(g, ::Union{GeoInterface.MultiPolygonTrait,GeoInterface.GeometryCollectionTrait}, geom, z, m)
-    for part in GeoInterface.getgeom(geom)
-        push!(g.parts, convert_geometry(part, z, m))
+        _coordinates!(c, GeoInterface.LineStringTrait(), ring, z, m)
+        push!(c.ends, UInt32(length(c.xy) ÷ 2))
     end
 end
 
-"""
-    convert_geometry(geom, z=GeoInterface.is3d(geom), m=GeoInterface.ismeasured(geom)) -> Geometry
+# FlatGeobuf geometries already store their coordinates like this
+function _coordinates!(c, geom::Geometry, z, m)
+    append!(c.ends, geom.ends)
+    append!(c.xy, geom.xy)
+    z && append!(c.z, geom.z)
+    m && append!(c.m, geom.m)
+end
 
-Convert a GeoInterface compatible geometry to a FlatGeobuf `Geometry`, storing Z and M values if `z` and `m` are set.
-"""
-function convert_geometry(geom, z::Bool=GeoInterface.is3d(geom), m::Bool=GeoInterface.ismeasured(geom))
+# Clear `b` for the next feature, like the Clear of flatbuffers' Builder, so its buffer is reused
+function reset!(b::FlatBuffers.Builder)
+    b.head = length(b.bytes)
+    b.minalign = 1
+    empty!(b.vtables)
+    b.nested = b.finished = false
+    b
+end
+
+# Copy a vector of numbers into the builder at once, as FlatBuffers.createbytevector does for bytes,
+# instead of one number at a time as FlatBuffers.build! does
+function vector!(b::FlatBuffers.Builder, v::Vector{T}) where {T<:Number}
+    nbytes = length(v) * sizeof(T)
+    FlatBuffers.startvector(b, sizeof(T), length(v), sizeof(T))
+    b.head -= nbytes
+    copyto!(b.bytes, b.head + 1, reinterpret(UInt8, v), 1, nbytes)
+    FlatBuffers.endvector(b, length(v))
+end
+
+# Build the Geometry table of `geom` in `b`, with the slots of src/schema/feature.fbs, and return its offset.
+# The parts of a collection are built before it, so they can all use `c`.
+function geometry!(b::FlatBuffers.Builder, c::Coordinates, geom, z::Bool, m::Bool)
     trait = GeoInterface.geomtrait(geom)
-    g = Geometry(type=geometrytype(trait))
-    _geometry!(g, trait, geom, z, m)
-    g
+    ends = xy = zs = ms = parts = 0
+    if trait isa Union{GeoInterface.MultiPolygonTrait,GeoInterface.GeometryCollectionTrait}
+        offsets = [geometry!(b, c, part, z, m) for part in GeoInterface.getgeom(geom)]
+        parts = FlatBuffers.putoffsetvector!(b, offsets, length(offsets))
+    else
+        foreach(empty!, (c.ends, c.xy, c.z, c.m))
+        geom isa Geometry ? _coordinates!(c, geom, z, m) : _coordinates!(c, trait, geom, z, m)
+        isempty(c.ends) || (ends = vector!(b, c.ends))
+        xy = vector!(b, c.xy)
+        z && (zs = vector!(b, c.z))
+        m && (ms = vector!(b, c.m))
+    end
+    FlatBuffers.startobject(b, 8)
+    FlatBuffers.prependoffsetslot!(b, 1, ends, 0)
+    FlatBuffers.prependoffsetslot!(b, 2, xy, 0)
+    FlatBuffers.prependoffsetslot!(b, 3, zs, 0)
+    FlatBuffers.prependoffsetslot!(b, 4, ms, 0)
+    FlatBuffers.prependoffsetslot!(b, 8, parts, 0)
+    FlatBuffers.prependslot!(b, 7, UInt8(geometrytype(trait)), 0x00)
+    FlatBuffers.endobject(b)
 end
 
-function encode_properties(io::IO, columns, i)
-    for (key, column) in enumerate(columns)
-        value = column[i]
-        ismissing(value) && continue
-        Base.write(io, UInt16(key - 1))
+# Encode the values of row `i`, recursing over the columns so each has its own element type
+encode_properties(io::IO, columns::Tuple, i::Int, key::Int=0) = nothing
+function encode_properties(io::IO, columns::Tuple{AbstractVector,Vararg}, i::Int, key::Int=0)
+    value = first(columns)[i]
+    if !ismissing(value)
+        Base.write(io, UInt16(key))
         _encode(io, value)
     end
+    encode_properties(io, Base.tail(columns), i, key + 1)
 end
 _encode(io::IO, x::Number) = Base.write(io, x)
 _encode(io::IO, x::Union{Dates.Date,Dates.DateTime}) = _encode(io, string(x))  # ISO 8601
-function _encode(io::IO, x::AbstractString)
-    s = String(x)  # e.g. InlineStrings would otherwise write their raw bytes
-    Base.write(io, UInt32(sizeof(s)), s)
+_encode(io::IO, x::String) = Base.write(io, UInt32(sizeof(x)), x)
+_encode(io::IO, x::AbstractString) = _encode(io, String(x))  # e.g. InlineStrings would write their raw bytes
+
+# Finish `b` with `root` and write it with its size prefix. Like the FinishSizePrefixed of flatbuffers,
+# as used by GDAL, first pad so that the data is 8-byte aligned in the file (FlatGeobuf 3.0.1):
+# https://github.com/OSGeo/gdal/blob/739fcf03bfcc075e300dbd45743187b380a17cdc/ogr/ogrsf_frmts/flatgeobuf/ogrflatgeobuflayer.cpp#L2332
+# https://github.com/OSGeo/gdal/blob/739fcf03bfcc075e300dbd45743187b380a17cdc/third_party/flatbuffers/flatbuffer_builder.h#L1114-L1129
+function write_sizeprefixed(io::IO, b::FlatBuffers.Builder, root)
+    FlatBuffers.prep!(b, 8, 2 * sizeof(UInt32))
+    FlatBuffers.prependoffset!(b, root)
+    prepend!(b, UInt32(FlatBuffers.offset(b)))
+    GC.@preserve b Base.write(io, FlatBuffers.bytes(b))  # bytes doesn't keep `b` alive
 end
 
-# Write a FlatBuffer table with its UInt32 size prefix. Like GDAL, pad after the root offset so
-# that the data is 8-byte aligned relative to the size prefix, as verified by e.g. the Rust reader.
-function write_sizeprefixed(io::IO, x)
-    b = FlatBuffers.build!(x)
-    bytes = view(b.bytes, b.head+1:length(b.bytes))  # FlatBuffers.bytes(b) doesn't keep `b` alive
-    pad = mod(-(4 + length(bytes)), 8)
-    root = reinterpret(UInt32, bytes[1:4])[1] + UInt32(pad)  # offsets are relative, so only the root moves
-    Base.write(io, UInt32(length(bytes) + pad), root, zeros(UInt8, pad), view(bytes, 5:length(bytes)))
+# Write the Feature table of `geom`, with the already encoded `properties`, using builder `b`
+function write_feature(io::IO, b::FlatBuffers.Builder, c::Coordinates, geom, z::Bool, m::Bool, properties::Vector{UInt8})
+    reset!(b)
+    geometry = geometry!(b, c, geom, z, m)
+    props = isempty(properties) ? 0 : FlatBuffers.createbytevector(b, properties)
+    FlatBuffers.startobject(b, 3)
+    FlatBuffers.prependoffsetslot!(b, 1, geometry, 0)
+    FlatBuffers.prependoffsetslot!(b, 2, props, 0)
+    write_sizeprefixed(io, b, FlatBuffers.endobject(b))
 end
 
 """
@@ -127,7 +183,9 @@ are not supported, and no spatial index is written.
 function write(fn::AbstractString, table; name::AbstractString=first(splitext(basename(fn))), kwargs...)
     # Read and check the table before opening `fn`, which may be the file being read
     header, geoms, values = prepare(table; name, kwargs...)
-    open(io -> write_features(io, header, geoms, values), fn, "w")
+    open(fn, "w") do io
+        write_features(io, header, geoms, values)
+    end
     fn
 end
 write(io::IO, table; kwargs...) = write_features(io, prepare(table; kwargs...)...)
@@ -138,7 +196,7 @@ function prepare(table; geometrycolumn=first(GeoInterface.geometrycolumns(table)
     geometrycolumn = Symbol(geometrycolumn isa Union{Tuple,AbstractVector} ? only(geometrycolumn) : geometrycolumn)
     geometrycolumn in sch.names || throw(ArgumentError("Geometry column $geometrycolumn not found in table."))
     geoms = Tables.getcolumn(cols, geometrycolumn)
-    any(ismissing, geoms) && throw(ArgumentError("FlatGeobuf.write doesn't support missing geometries."))
+    geometry_type, z, m = geometryinfo(geoms)
 
     names = filter(!=(geometrycolumn), collect(sch.names))
     length(names) <= typemax(UInt16) + 1 || throw(ArgumentError("FlatGeobuf supports at most 65536 columns."))
@@ -147,17 +205,10 @@ function prepare(table; geometrycolumn=first(GeoInterface.geometrycolumns(table)
         T = Tables.columntype(sch, name)
         Column(name=String(name), type=columntype(T), nullable=Missing <: T)
     end
-    values = [Tables.getcolumn(cols, name) for name in names]
-
-    types = unique(geometrytype(GeoInterface.geomtrait(geom)) for geom in geoms)
-    # The header Z and M flags apply to all features
-    z = any(GeoInterface.is3d, geoms)
-    m = any(GeoInterface.ismeasured, geoms)
-    all(g -> GeoInterface.is3d(g) == z && GeoInterface.ismeasured(g) == m, geoms) ||
-        throw(ArgumentError("FlatGeobuf.write can't mix geometries with and without Z or M values."))
+    values = Tuple(Tables.getcolumn(cols, name) for name in names)
     header = Header(
         name=name,
-        geometry_type=length(types) == 1 ? only(types) : GeometryTypeUnknown,
+        geometry_type=geometry_type,
         has_z=z,
         has_m=m,
         columns=columns,
@@ -168,14 +219,31 @@ function prepare(table; geometrycolumn=first(GeoInterface.geometrycolumns(table)
     header, geoms, values
 end
 
-function write_features(io::IO, header::Header, geoms, values)
+# The header geometry type, which is Unknown for mixed types, and the Z and M flags,
+# which apply to all features, in one pass over the geometries
+function geometryinfo(geoms)
+    type = dims = nothing
+    for geom in geoms
+        ismissing(geom) && throw(ArgumentError("FlatGeobuf.write doesn't support missing geometries."))
+        t = geometrytype(GeoInterface.geomtrait(geom))
+        type = isnothing(type) || type == t ? t : GeometryTypeUnknown
+        d = (GeoInterface.is3d(geom), GeoInterface.ismeasured(geom))
+        isnothing(dims) || d == dims || throw(ArgumentError("FlatGeobuf.write can't mix geometries with and without Z or M values."))
+        dims = d
+    end
+    something(type, GeometryTypeUnknown), something(dims, (false, false))...
+end
+
+function write_features(io::IO, header::Header, geoms, values::Tuple)
     Base.write(io, MAGIC_BYTES)
-    write_sizeprefixed(io, header)
+    hb = FlatBuffers.Builder(Header)
+    write_sizeprefixed(io, hb, FlatBuffers.buildbuffer!(hb, header))
+    b = FlatBuffers.Builder(Feature, 1024)
+    c = Coordinates()
     buf = IOBuffer()
     for (i, geom) in enumerate(geoms)
         encode_properties(buf, values, i)
-        feature = Feature(geometry=convert_geometry(geom, header.has_z, header.has_m), properties=take!(buf))
-        write_sizeprefixed(io, feature)
+        write_feature(io, b, c, geom, header.has_z, header.has_m, take!(buf))
     end
     io
 end
