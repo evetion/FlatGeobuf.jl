@@ -6,6 +6,7 @@ using DataFrames
 using Extents
 using Downloads
 using GeoInterface
+using GeoFormatTypes
 
 @testset "FlatGeobuf" begin
     fna = "countries.fgb"
@@ -95,5 +96,9 @@ using GeoInterface
         @test !GeoInterface.is3d(point) && GeoInterface.ismeasured(point)
         @test GeoInterface.m(point) == 4.0
         @test GeoInterface.coordinates(point) == [1.0, 2.0, 4.0]
+
+        wkt = "GEOGCS[\"WGS 84\",DATUM[\"WGS_1984\",SPHEROID[\"WGS 84\",6378137,298.257223563]],PRIMEM[\"Greenwich\",0],UNIT[\"degree\",0.0174532925199433]]"
+        header = FlatGeobuf.Header(crs=FlatGeobuf.Crs(wkt=wkt))
+        @test GeoInterface.crs(FlatGeobuf.FlatGeobuffer(header, [], IOBuffer(), 0, [], false)) == WellKnownText(GeoFormatTypes.CRS(), wkt)
     end
 end
