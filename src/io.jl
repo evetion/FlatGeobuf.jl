@@ -151,7 +151,17 @@ function Base.getindex(fgb::FlatGeobuffer, i::Integer)
     if fgb.filtered
         seek(fgb.io, fgb.offsets[i] + fgb.offset)
     else
-        seek(fgb.io, fgb.offset)
+        1 <= i <= length(fgb) || throw(BoundsError(fgb, i))
+        if isempty(fgb.rtree)
+            # Skip the size prefixed features before i
+            seek(fgb.io, fgb.offset)
+            for _ in 1:i-1
+                skip(fgb.io, Base.read(fgb.io, UInt32))
+            end
+        else
+            # The leaves of the index hold the offsets of the features, in order
+            seek(fgb.io, fgb.rtree[end-length(fgb)+i].offset + fgb.offset)
+        end
     end
     feature_size = Base.read(fgb.io, UInt32)
     f = Feature(Base.read(fgb.io, feature_size))
