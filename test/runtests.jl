@@ -70,5 +70,16 @@ using GeoInterface
         @test GeoInterface.testfeaturecollection(fgb)
         @test GeoInterface.testfeature(iterate(fgb)[1])
         @test GeoInterface.testgeometry(iterate(fgb)[1].geometry)
+
+        # The hole of South Africa starts after the end of the exterior ring
+        fgb = FlatGeobuf.read(fna)
+        zaf = first(f for f in fgb if GeoInterface.properties(f).id == "ZAF")
+        hole = GeoInterface.coordinates(GeoInterface.getgeom(GeoInterface.getgeom(zaf.geometry, 1), 2))
+        @test length(hole) == 12
+        @test hole[1] == hole[end] == [28.978263, -28.955597]
+
+        mls = FlatGeobuf.Geometry(xy=[0.0, 0.0, 1.0, 1.0, 2.0, 2.0, 3.0, 3.0], tm=UInt64[1, 2, 3, 4], ends=UInt32[2, 4], type=FlatGeobuf.GeometryTypeMultiLineString)
+        @test GeoInterface.getgeom(mls, 2).xy == [2.0, 2.0, 3.0, 3.0]
+        @test GeoInterface.getgeom(mls, 2).tm == UInt64[3, 4]
     end
 end
