@@ -67,26 +67,35 @@ using GeoInterface
     end
 
     @testset "Corrupt files" begin
-        function file(header, rest=UInt8[])
+        magic = read(fna, 8)  # from a valid file
+        # A file with `header`, followed by `rest`
+        function file(header::FlatGeobuf.Header, rest...)
             buf = IOBuffer()
             FlatBuffers.serialize(buf, header)
             bytes = take!(buf)
             fn = tempname()
-            write(fn, UInt8[0x66, 0x67, 0x62, 0x03, 0x66, 0x67, 0x62, 0x00], UInt32(length(bytes)), bytes, rest)
+            write(fn, magic, UInt32(length(bytes)), bytes, rest...)
             fn
         end
-        # Sizes that don't fit in the file
-        bytes = read(fna)
-        bytes[9:12] .= 0xff
+
+        # A header size beyond the end of the file
         fn = tempname()
-        write(fn, bytes)
-        @test_throws ErrorException FlatGeobuf.read(fn)
-        @test_throws ErrorException FlatGeobuf.read(file(FlatGeobuf.Header(features_count=10^12)))
-        fgb = FlatGeobuf.read(file(FlatGeobuf.Header(features_count=1, index_node_size=0), [reinterpret(UInt8, [UInt32(1000)]); zeros(UInt8, 16)]))
-        @test_throws ErrorException first(fgb)
+        write(fn, magic, typemax(UInt32))
+        @test_throws ErrorException("Invalid size 4294967295 at position 8.") FlatGeobuf.read(fn)
+
+        # A feature size beyond the end of the file
+        fgb = FlatGeobuf.read(file(FlatGeobuf.Header(features_count=1, index_node_size=0), UInt32(1000), zeros(UInt8, 16)))
+        @test_throws ErrorException("Invalid size 1000 at position $(fgb.offset).") first(fgb)
+
+        # More features than fit in the file
+        fn = file(FlatGeobuf.Header(features_count=10^12, index_node_size=0))
+        @test_throws ErrorException("The 1000000000000 features don't fit in the file.") FlatGeobuf.read(fn)
+
         # An index without features, or with a node size of 1
-        @test_throws ErrorException FlatGeobuf.read(file(FlatGeobuf.Header(features_count=0)))
-        @test_throws ErrorException FlatGeobuf.read(file(FlatGeobuf.Header(features_count=1, index_node_size=1)))
+        fn = file(FlatGeobuf.Header(features_count=0, index_node_size=16))
+        @test_throws ErrorException("Index without features.") FlatGeobuf.read(fn)
+        fn = file(FlatGeobuf.Header(features_count=1, index_node_size=1))
+        @test_throws ErrorException("Invalid index node size 1.") FlatGeobuf.read(fn)
     end
 
     @testset "Filter" begin

@@ -38,13 +38,15 @@ function read(fn)
     header = Header(read_sizeprefixed(io))
     fgb = FlatGeobuffer(header, [], io, 0, [], false)
     @debug header, header.crs, header.columns
+    if header.index_node_size > 0
+        header.index_node_size >= 2 || error("Invalid index node size $(header.index_node_size).")
+        header.features_count > 0 || error("Index without features.")
+    end
     # Each feature takes at least 12 bytes, and with an index also a leaf node
     min_size = 12 + (header.index_node_size > 0) * sizeof(NodeItem)
     header.features_count <= (filesize(io) - position(io)) ÷ min_size || error("The $(header.features_count) features don't fit in the file.")
     rtree_size = 0
     if header.index_node_size > 0
-        header.index_node_size >= 2 || error("Invalid index node size $(header.index_node_size).")
-        header.features_count > 0 || error("Index without features.")
         @debug "Tree start at offset ($(position(io)))"
         n_nodes = calc_rtree_nodes(header.features_count, header.index_node_size)
         sizehint!(fgb.rtree, n_nodes)
