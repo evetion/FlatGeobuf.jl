@@ -13,7 +13,7 @@ function GeoInterface.crs(fgb::FlatGeobuffer)
     if crs.code != 0
         return GeoFormatTypes.EPSG(crs.code)
     elseif !isempty(crs.wkt)
-        return GeoFormatTypes.WKT(crs.wkt)
+        return GeoFormatTypes.WellKnownText(GeoFormatTypes.CRS(), crs.wkt)
     else
         return nothing
     end
