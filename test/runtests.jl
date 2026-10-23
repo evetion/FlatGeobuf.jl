@@ -52,6 +52,17 @@ using GeoInterface
         @test ismissing(t.number[2])
     end
 
+    @testset "Indexing" begin
+        fgb = FlatGeobuf.read(fna)
+        features = collect(fgb)
+        @test fgb[2] == features[2]
+        @test fgb[length(fgb)] == features[end]
+        @test GeoInterface.getfeature(fgb, 3) == features[3]
+        @test_throws BoundsError fgb[length(fgb) + 1]
+        fgb.rtree = FlatGeobuf.NodeItem[]  # as without an index
+        @test fgb[2] == features[2]
+    end
+
     @testset "Filter" begin
         fgb = FlatGeobuf.read(fna)
         @test length(fgb) == 179
