@@ -94,7 +94,7 @@ function GeoInterface.getgeom(::GeoInterface.AbstractTrait, geom::Geometry, i::I
     index = i
     if !isempty(geom.ends)
         j = geom.ends[i]
-        i = i == 1 ? 1 : geom.ends[i-1]
+        i = i == 1 ? 1 : geom.ends[i-1] + 1  # ends are 0-based exclusive
     elseif i == 1
         i = 1
         j = length(geom.xy) ÷ 2
@@ -108,7 +108,7 @@ function GeoInterface.getgeom(::GeoInterface.AbstractTrait, geom::Geometry, i::I
         z=isempty(geom.z) ? Float64[] : geom.z[i:j],
         m=isempty(geom.m) ? Float64[] : geom.m[i:j],
         t=isempty(geom.t) ? Float64[] : geom.t[i:j],
-        tm=isempty(geom.tm) ? UInt64[] : geom.tm[i:i],
+        tm=isempty(geom.tm) ? UInt64[] : geom.tm[i:j],
         type=childtype(geom.type),
         parts=Geometry[]
     )
